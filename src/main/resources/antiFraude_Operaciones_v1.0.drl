@@ -1,0 +1,36 @@
+package com.atSistemas.antifraude.motor;
+ 
+import com.atSistemas.antifraude.motor.service.domain.Operation;
+import com.atSistemas.antifraude.motor.service.domain.IpNegra;
+import com.atSistemas.antifraude.motor.service.domain.CuentaNegra;
+import com.atSistemas.antifraude.motor.service.domain.Result;
+
+global org.slf4j.Logger logger;
+
+rule "ips_negras"
+when 
+    $operacion: Operation ($ip:ip);
+    IpNegra (ip == $ip);
+then
+    logger.info("ips_negras");    
+    $operacion.addResult(1, "Se ha producido una operación desde una ip Negra "+$ip);
+end
+
+rule "cuentas_negras"
+when 
+    $operation: Operation ($cccDestination:cccDestination);
+    CuentaNegra (ccc == $cccDestination);
+then
+    logger.info("cuentas_negras");    
+    $operation.addResult(1, "Se ha producido una operación desde una cuenta Negra "+$cccDestination);
+end
+
+rule "importes_bajos"
+when
+    Threshold(type == Threshold.Type.CANTIDAD_OPERACION_BAJA, $min:value);
+    $operation: Operation($login:login, $amount:amount <= $min);
+
+then
+    logger.info("importes_bajos");    
+    $operation.addResult(1, "Se han producido una serie de operaciones cuya cantidad supera el umbral permitido");
+end

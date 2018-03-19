@@ -1,0 +1,64 @@
+package com.atSistemas.antifraude.motor;
+ 
+import com.atSistemas.antifraude.motor.service.domain.Access;
+import com.atSistemas.antifraude.motor.service.domain.Client;
+import com.atSistemas.antifraude.motor.service.domain.WrongLogin;
+import com.atSistemas.antifraude.motor.service.domain.Alert;
+import com.atSistemas.antifraude.motor.service.domain.Result;
+import com.atSistemas.antifraude.motor.service.domain.Threshold;
+
+global org.slf4j.Logger logger;
+
+rule "logines incorrectos_1_1"
+when 
+    $acceso: Access ($ip:ip,$login:login,$pwd:pwd,getResult()==null);
+    not Client (login == $login, pwd == $pwd);
+    $loginsIncorrectos: WrongLogin(ip == $ip);
+    Threshold(type == Threshold.Type.MAX_LOGINS_INCORRECTOS, $max:value);
+    Threshold(type == Threshold.Type.TIME_LOGINS_INCORRECTOS, $time:value);
+    eval($loginsIncorrectos.maxLoginsIncorrectos($max, $time) == false);
+then
+    $loginsIncorrectos.addWrongAccess();
+    logger.info("logines incorrectos_1_1 "+$loginsIncorrectos.getWrongAccess().size());    
+    $acceso.setResult(new Result(0, "Se han producido " +$loginsIncorrectos.getWrongAccess().size() + " accesos incorrectos desde "+$ip));
+    delete($acceso);
+end
+
+rule "logines incorrectos_1_2"
+when 
+    $acceso: Access ($ip:ip,$login:login,$pwd:pwd,getResult()==null);
+    not Client (login == $login, pwd == $pwd);
+then
+    insert (new WrongLogin($ip));
+    logger.info("logines incorrectos_1_2");
+    
+    $acceso.setResult(new Result(0, "Se ha producido un acceso incorrecto desde "+$ip));
+    delete($acceso);
+end
+
+rule "login correcto"
+when 
+    $acceso: Access ($ip:ip,$login:login,$pwd:pwd,getResult()==null);
+    Client (login == $login, pwd == $pwd);
+then
+    logger.info("login correcto");
+    
+    $acceso.setResult(new Result(0, "Se ha producido un acceso correcto desde "+$ip));
+    delete($acceso);
+end
+
+rule "logines incorrectos_2"
+salience 30
+when 
+    $acceso: Access ($ip:ip,$login:login,$pwd:pwd,getResult()==null);
+    not Client (login == $login, pwd == $pwd);
+    $loginsIncorrectos: WrongLogin(ip == $ip);
+    Threshold(type == Threshold.Type.MAX_LOGINS_INCORRECTOS, $max:value);
+    Threshold(type == Threshold.Type.TIME_LOGINS_INCORRECTOS, $time:value);
+    eval($loginsIncorrectos.maxLoginsIncorrectos($max, $time));
+then
+    $loginsIncorrectos.addWrongAccess();
+    logger.info("logines incorrectos_2");
+    $acceso.setResult(new Result(1, "Se han producido " +$loginsIncorrectos.getWrongAccess().size() + " accesos incorrectos desde "+$ip));
+    delete($acceso);
+end 
